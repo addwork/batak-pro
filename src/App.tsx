@@ -154,19 +154,27 @@ function App() {
       const remaining = activeBidders.filter((p) => p !== player);
       setActiveBidders(remaining);
 
-      // everyone passed (no 8+)
+      // SENARYO A: Herkes PAS dedi (İhale mecburen dağıtıcıya 7 ile kaldı)
       if (currentBid === 0 && remaining.length === 1) {
         setBidOwner(dealer);
         setCurrentBid(7);
 
-        const analysis = calculateAdvancedBotBid(hands[dealer]);
-        setTrump(analysis.preferredSuit);
-        setPhase("PLAYING");
-        setTurn(getNextPlayer(dealer)); // east starts
+        // --- DÜZELTME BURADA ---
+        // Eğer dağıtıcı İNSAN ise, otomatik koz seçme! Seçtirt.
+        if (playerTypes[dealer] === "HUMAN") {
+            setTurn(dealer);
+            setPhase("TRUMP_SELECTION"); // Koz seçme ekranına git
+        } else {
+            // Dağıtıcı BOT ise otomatik seçip başlasın
+            const analysis = calculateAdvancedBotBid(hands[dealer]);
+            setTrump(analysis.preferredSuit);
+            setPhase("PLAYING");
+            setTurn(dealer);
+        }
         return;
       }
 
-      // single bidder remains
+      // SENARYO B: İhaleyi birisi yükseltti ve diğer herkes çekildi (Kazanan belli)
       if (remaining.length === 1) {
         const winner = remaining[0];
         setBidOwner(winner);
@@ -181,7 +189,7 @@ function App() {
         return;
       }
 
-      // rotate to next active bidder
+      // SENARYO C: Hala teklif verenler var, sıradakine geç
       let next = getNextPlayer(player);
       while (!remaining.includes(next)) next = getNextPlayer(next);
       setTurn(next);
@@ -203,7 +211,8 @@ function App() {
     setTrump(selectedSuit);
     setPhase("PLAYING");
     playSound("bid");
-    setTurn(currentBid === 7 ? getNextPlayer(dealer) : (bidOwner as PlayerPosition));
+    // DÜZELTME 2: İhale kaç olursa olsun, İhaleyi Alan (bidOwner) başlar.
+    setTurn(bidOwner as PlayerPosition);
   };
 
   const playCardGeneric = (player: PlayerPosition, card: Card) => {
@@ -221,13 +230,28 @@ function App() {
   const handleUserClick = (card: Card, cardOwner: PlayerPosition) => {
     if (phase !== "PLAYING") return;
 
-    // if partner (north) is bidder, south is spectator
-    if (bidOwner === "north" && cardOwner === "south") return;
+    // KURAL 1: Eşim (North) ihaleyi aldıysa, ben (South) İZLEYİCİYİM.
+    // Sıra bende bile olsa kartlarıma dokunamam, Bot (North) oynayacak.
+    if (bidOwner === "north" && cardOwner === "south") {
+        console.log("Sen izleyicisin, eşin oynayacak.");
+        return;
+    }
 
-    const isMyTurnAndHuman = turn === cardOwner && playerTypes[cardOwner] === "HUMAN";
-    const isNorthPlayedByMe = turn === "north" && bidOwner === "south" && cardOwner === "north";
+    // KURAL 2: Oynama yetkisi kontrolü
+    let canIPlay = false;
 
-    if (isMyTurnAndHuman || isNorthPlayedByMe) {
+    // A) Sıra bende ve kart benim
+    if (turn === "south" && cardOwner === "south") {
+        canIPlay = true;
+    }
+    
+    // B) İhaleyi BEN aldım, sıra EŞİMDE (North) ve kart EŞİMİN
+    // (Normalde North bir BOT ama ihaleyi ben aldığım için onu ben yönetiyorum)
+    if (bidOwner === "south" && turn === "north" && cardOwner === "north") {
+        canIPlay = true;
+    }
+
+    if (canIPlay) {
       const validation = validateMove(card, hands[cardOwner], tableCards, trump);
       if (!validation.isValid) {
         alert(validation.message);
@@ -241,9 +265,15 @@ function App() {
   useEffect(() => {
     if (phase === "BIDDING" && playerTypes[turn] === "BOT") {
       const timer = setTimeout(() => {
+        // Güvenlik: El boşsa PAS geç
+        if (!hands[turn] || hands[turn].length === 0) {
+           handleBidAction(turn, "PAS");
+           return;
+        }
+
         const analysis = calculateAdvancedBotBid(hands[turn]);
         if (analysis.bid === CIZ_BID) handleBidAction(turn, CIZ_BID);
-        else if (analysis.bid > currentBid) handleBidAction(turn, analysis.bid);
+        else if (typeof analysis.bid === "number" && analysis.bid > currentBid) handleBidAction(turn, analysis.bid);
         else handleBidAction(turn, "PAS");
       }, 1500);
 
@@ -251,30 +281,74 @@ function App() {
     }
   }, [phase, turn, currentBid, activeBidders, hands]);
 
-  // --- BOT PLAYING ---
+  // --- BOT PLAYING (KUSURSUZ İHALECİ MANTIĞI) ---
   useEffect(() => {
+    // Sadece OYUN (PLAYING) aşamasında ve masa dolmamışken çalışır
     if (phase !== "PLAYING" || tableCards.length === 4) return;
 
     const activePlayer = turn;
+    let shouldBotPlay = false;
 
-    let isBotTurn = false;
-    if (activePlayer === "west" || activePlayer === "east") isBotTurn = true;
+    // --- SENARYO ANALİZİ ---
+
+    // 1. Sıra Batı (West) veya Doğu (East) ise -> DAİMA BOT OYNAR
+    if (activePlayer === "west" || activePlayer === "east") {
+        shouldBotPlay = true;
+    }
+    
+    // 2. Sıra Kuzey (North) ise:
     else if (activePlayer === "north") {
-      if (bidOwner !== "south" && playerTypes["north"] === "BOT") isBotTurn = true;
-    } else if (activePlayer === "south") {
-      if (bidOwner === "north" && playerTypes["north"] === "BOT") isBotTurn = true;
+        // Eğer ihaleyi GÜNEY (Sen) aldıysan -> Sen oynayacaksın. (Bot SUSAR)
+        if (bidOwner === "south") {
+            shouldBotPlay = false;
+        } 
+        // Eğer ihaleyi başkası aldıysa -> Bot kendi oynar.
+        else {
+            shouldBotPlay = true;
+        }
     }
 
-    if (!isBotTurn) return;
+    // 3. Sıra Güney (South - SEN) ise:
+    else if (activePlayer === "south") {
+        // Eğer ihaleyi KUZEY (Bot Eşin) aldıysa -> O senin yerine oynar. (Bot OYNAR)
+        if (bidOwner === "north") {
+            shouldBotPlay = true;
+        }
+        // Değilse kontrol sende (Bot SUSAR)
+        else {
+            shouldBotPlay = false;
+        }
+    }
 
+    if (!shouldBotPlay) return;
+
+    // --- BOT HAMLESİ ---
     const timer = setTimeout(() => {
       const botHand = hands[activePlayer];
       if (!botHand || botHand.length === 0) return;
 
-      const isBidder = bidOwner === activePlayer;
-      const cardToPlay = findSmartMove(botHand, tableCards, trump, activePlayer, isBidder);
+      // İhaleyi alan takımı belirle (Botun stratejisi için)
+      const isBidder = (bidOwner === activePlayer) || (getPartner(bidOwner!) === activePlayer);
+      
+      // Masadaki açık el (Dummy)
+      // Eğer ihale Güney veya Kuzey'deyse -> Kuzey açıktır.
+      // Eğer ihale Batı veya Doğu'daysa -> İhalecinin ortağı açıktır.
+      let dummyHand: Card[] | null = null;
+      if (bidOwner === "south" || bidOwner === "north") dummyHand = hands.north;
+      else if (bidOwner === "west") dummyHand = hands.east;
+      else if (bidOwner === "east") dummyHand = hands.west;
+
+      const cardToPlay = findSmartMove(
+          botHand, 
+          tableCards, 
+          trump, 
+          activePlayer, 
+          isBidder, 
+          dummyHand 
+      );
+      
       playCardGeneric(activePlayer, cardToPlay);
-    }, 1000);
+    }, 1000); 
 
     return () => clearTimeout(timer);
   }, [turn, phase, hands, tableCards, trump, bidOwner]);
@@ -289,7 +363,6 @@ function App() {
       setRoundTricks(updatedTricks);
       setTableCards([]);
 
-      // if CIZ and bidder team lost a trick -> end immediately
       if (currentBid === CIZ_BID) {
         const bidderTeam = bidOwner === "south" || bidOwner === "north" ? "US" : "THEM";
         const winnerTeam = winner === "south" || winner === "north" ? "US" : "THEM";
@@ -419,27 +492,27 @@ function App() {
 const renderPlayedCard = (item: { player: PlayerPosition; card: Card }) => {
   let x = "-50%";
   let y = "-50%";
-  let rot = Math.random() * 6 - 3; // daha az sallansın
+  let rot = Math.random() * 6 - 3;
 
   if (item.player === "south") {
     y = "-20%";
-	x = "-90%";
+    x = "-90%";
   }
 
   if (item.player === "north") {
     y = "-80%";
-	x = "-80%";
+    x = "-80%";
   }
 
   if (item.player === "west") {
-    x = "-20%";   // 🔴 ESKİ -120% YERİNE
-	y = "-50%";
+    x = "-20%";
+    y = "-50%";
     rot -= 10;
   }
 
   if (item.player === "east") {
-    x = "-110%";   // 🔴 ESKİ 20% YERİNE
-	y = "-50%";
+    x = "-110%";
+    y = "-50%";
     rot += 10;
   }
 
@@ -461,7 +534,6 @@ const renderPlayedCard = (item: { player: PlayerPosition; card: Card }) => {
   );
 };
 
-  // --- HAND RENDERING (FIXED: 6+7 layout, small overlap, works for back too) ---
   const renderHandTwoRows = (
     cards: Card[],
     owner: PlayerPosition,
@@ -504,19 +576,18 @@ const renderPlayedCard = (item: { player: PlayerPosition; card: Card }) => {
     );
   };
 
-  // north hand: face up only if bidder is south or north during PLAYING; otherwise show back but same 6+7 layout
   const renderNorthHand = () => {
-    const canSee = phase === "PLAYING" && (bidOwner === "south" || bidOwner === "north");
+    const isBiddingFinished = phase !== "IDLE" && phase !== "BIDDING";
+    const isMyTeamBidder = bidOwner === "south" || bidOwner === "north";
+    const canSee = isBiddingFinished && isMyTeamBidder;
     return renderHandTwoRows(hands.north, "north", canSee ? "FACE_UP" : "FACE_DOWN", false, "north-slot");
   };
 
-  // side hand: if dummy (partner of bidder) -> face up and 6+7 layout; otherwise keep closed stack
   const renderSideStack = (pos: PlayerPosition) => {
     const isDummy =
       phase === "PLAYING" && bidOwner !== null && getPartner(bidOwner) === pos;
 
     if (isDummy) {
-      // show like a hand (6+7) but rotated towards table
       return renderHandTwoRows(hands[pos], pos, "FACE_UP", false, "side-open");
     }
 
@@ -529,7 +600,6 @@ const renderPlayedCard = (item: { player: PlayerPosition; card: Card }) => {
     );
   };
 
-  // --- LOGIN ---
   if (!setupComplete) {
     return (
       <div className="login-screen">
@@ -720,7 +790,6 @@ const renderPlayedCard = (item: { player: PlayerPosition; card: Card }) => {
             <button
               className="btn-start-mobile"
               onClick={() => {
-                // keep your old behavior: rotate dealer and new round
                 setDealer(getNextPlayer(dealer));
                 startNewRound();
               }}
