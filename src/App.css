@@ -1,0 +1,653 @@
+/* src/App.css */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Montserrat:wght@400;600;800&display=swap');
+
+:root {
+  --bg-dark: #050505;
+  --table-green: #0f2b1e;
+  --gold-primary: #e6c15c;
+  --gold-dark: #8a6e2f;
+  --gold-gradient: linear-gradient(180deg, #fff3c5 0%, #e6c15c 40%, #8a6e2f 100%);
+
+  /* Card sizing */
+  --card-w: min(18vw, 80px);
+  --card-overlap: min(9.6vw, 24px); /* how much cards overlap horizontally */
+  --row-gap: 10px;
+}
+
+body, html, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: 'Montserrat', sans-serif;
+  user-select: none;
+  touch-action: none;
+}
+
+/* --- OYUN ALANI --- */
+.mobile-container {
+  width: 100%;
+  height: 100%;
+  background-color: var(--table-green);
+  background-image:
+    radial-gradient(circle at 50% 30%, rgba(255,255,255,0.08) 0%, transparent 70%),
+    url("https://www.transparenttextures.com/patterns/felt.png");
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* ÜST STATUS BAR */
+.status-bar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 10px 20px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+  color: white;
+  z-index: 50;
+  height: 70px;
+}
+
+.score-pill {
+  background: rgba(0,0,0,0.6);
+  border: 1px solid var(--gold-dark);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  display: flex;
+  gap: 10px;
+  font-weight: bold;
+  backdrop-filter: blur(5px);
+}
+
+.bid-pill {
+  font-family: 'Cinzel';
+  color: var(--gold-primary);
+  font-size: 16px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+}
+
+/* ORTA ALAN */
+.game-area {
+  position: absolute;
+  top: 70px;
+  bottom: 180px;
+  left: 0; right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* KUZEY ALANI */
+.north-area {
+  position: absolute;
+  left: 0; right: 0;
+  top: 10px;
+  height: 170px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  pointer-events: none;
+}
+.north-area .hand-container { pointer-events: auto; }
+
+/* YAN OYUNCULAR */
+.west-area {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  z-index: 20;
+}
+.east-area {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  z-index: 20;
+}
+
+/* İSİMLİKLER */
+.player-badge {
+  background: rgba(20,20,20,0.9);
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 4px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+  transition: all 0.3s;
+  min-width: 60px;
+  z-index: 30;
+}
+.player-badge.active-turn {
+  border-color: var(--gold-primary);
+  background: linear-gradient(180deg, #2a2010, #1a150b);
+  box-shadow: 0 0 15px rgba(230, 193, 92, 0.4);
+  transform: scale(1.1);
+}
+.pb-name { font-family: 'Cinzel'; font-size: 10px; color: #ccc; font-weight: bold; }
+.active-turn .pb-name { color: var(--gold-primary); }
+.pb-score { font-size: 9px; color: #fff; font-weight: 600; }
+
+/* KUZEY (üst oyuncu – kartların ALTINDA) */
+.pos-north {
+  position: absolute;
+  top: 20px;                 /* 👈 kartların önüne indi */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+}
+
+/* GÜNEY (sen – kartların ÜSTÜNDE) */
+.pos-south {
+  position: absolute;
+  bottom: 210px;              /* 👈 elinin hemen üstü */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+}
+
+/* BATI (sol – kartların SAĞINDA) */
+.pos-west {
+  position: absolute;
+  left: 17%;                 /* 👈 elinin önüne geldi */
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 30;
+}
+
+/* DOĞU (sağ – kartların SOLUNDA) */
+.pos-east {
+  position: absolute;
+  right: 17%;;                /* 👈 elinin önüne geldi */
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 30;
+}
+
+.pos-north .player-badge {
+  transform: rotate(0deg);
+}
+
+.pos-west .player-badge {
+  transform: rotate(90deg);
+}
+
+.pos-east .player-badge {
+  transform: rotate(-90deg);
+}
+
+/* ============ HAND LAYOUT (THE FIX) ============ */
+.hand-container {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--row-gap);
+  pointer-events: auto;
+}
+
+.hand-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: -45px;
+  transform: translateY(40px);
+}
+
+.card-visual {
+  width: var(--card-w);
+  aspect-ratio: 226 / 314;
+  border-radius: 6px;
+  background-color: #fff;
+  box-shadow: -1px 2px 5px rgba(0,0,0,0.5);
+  transition: transform 0.2s;
+  will-change: transform;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Slight overlap (NOT too much) */
+.hand-row .card-visual:not(:first-child) {
+  margin-left: calc(var(--card-overlap) * -1);
+}
+
+/* Your hand a tiny bit tighter */
+.south-hand { --card-overlap: min(4.2vw, 28px); }
+
+.card-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.my-card.interactive:active {
+  transform: translateY(-20px) !important;
+  z-index: 999 !important;
+}
+
+/* Side open hands: same layout, rotated */
+.side-open.west-hand {
+  transform: rotate(90deg) scale(0.7);
+  transform-origin: center;
+}
+.side-open.east-hand {
+  transform: rotate(-90deg) scale(0.7);
+  transform-origin: center;
+}
+
+/* GÜNEY ELİ (ALT) */
+.my-hand-container {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 200px;
+  z-index: 100;
+  overflow: visible;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* YAN DESTELER (KAPALI) */
+.side-stack-container {
+  position: relative;
+  width: 60px;
+  height: 80px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.side-card-back {
+  width: 50px;
+  height: 14px;
+  background: linear-gradient(to bottom, #800, #400);
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  position: absolute;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+/* ORTA STACK */
+.center-stack {
+  width: 140px;
+  height: 140px;
+  position: relative;
+  z-index: 5;
+  margin-bottom: 40px;
+}
+.played-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--card-w);
+  aspect-ratio: 226 / 314;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* =========================================
+   POPUP TASARIMLARI
+   ========================================= */
+.top-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-top: 80px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.top-sheet {
+  background: #141414;
+  background-image:
+    linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(0,0,0,0.5) 100%),
+    url("https://www.transparenttextures.com/patterns/carbon-fibre.png");
+  border-bottom: 4px solid var(--gold-primary);
+  border-radius: 0 0 25px 25px;
+  padding: 25px 20px 35px 20px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.9);
+  margin: 0 10px;
+  animation: slideDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.sheet-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  font-size: 24px;
+  letter-spacing: 1px;
+  color: var(--gold-primary);
+  text-shadow: 0 2px 10px rgba(230, 193, 92, 0.3);
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  text-transform: uppercase;
+}
+
+.bid-log-container {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 10px 15px;
+  margin-bottom: 20px;
+  max-height: 120px;
+  overflow-y: auto;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+}
+
+.log-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 15px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-family: 'Montserrat', sans-serif;
+}
+.log-item:last-child { border-bottom: none; }
+
+.log-player { color: #ddd; font-weight: 500; }
+.log-action {
+  color: var(--gold-primary);
+  font-weight: 800;
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+}
+
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.btn-mobile {
+  background: linear-gradient(145deg, #2a2a2a, #1f1f1f);
+  border: 1px solid #444;
+  color: #eee;
+  padding: 15px 0;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 20px;
+  font-family: 'Montserrat', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 0 #111;
+}
+.btn-mobile:active {
+  background: var(--gold-primary);
+  color: #000;
+  border-color: var(--gold-primary);
+  transform: translateY(4px);
+  box-shadow: none;
+}
+
+.btn-pass {
+  background: linear-gradient(145deg, #450a0a, #2a0505);
+  border-color: #7f1d1d;
+  color: #fca5a5;
+  font-size: 16px;
+}
+.btn-ciz {
+  grid-column: span 4;
+  background: var(--gold-gradient);
+  color: #1a110d;
+  margin-top: 10px;
+  font-size: 18px;
+  letter-spacing: 2px;
+  box-shadow: 0 4px 20px rgba(230, 193, 92, 0.3);
+}
+
+.trump-grid { display: flex; gap: 15px; justify-content: center; }
+.trump-btn {
+  flex: 1;
+  height: 70px;
+  background: #f0f0f0;
+  border-radius: 12px;
+  font-size: 40px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 0 #999;
+  cursor: pointer;
+}
+.trump-btn:active { transform: translateY(6px); box-shadow: none; background: var(--gold-primary); }
+
+.result-info {
+  font-size: 16px;
+  color: #ccc;
+  line-height: 1.6;
+  margin-bottom: 25px;
+}
+.result-highlight { color: var(--gold-primary); font-weight: bold; font-size: 18px; }
+
+/* =========================================
+   PREMIUM GİRİŞ EKRANI
+   ========================================= */
+.login-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background-color: #050505;
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.15) 0%, transparent 70%),
+    repeating-linear-gradient(45deg, #0a0a0a 0px, #0a0a0a 2px, #111 2px, #111 4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  text-align: center;
+  overflow: hidden;
+}
+
+.logo-container {
+  margin-bottom: 30px;
+  animation: floatLogo 6s ease-in-out infinite;
+  position: relative;
+}
+
+.hero-title {
+  font-size: 60px;
+  line-height: 1;
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  background: linear-gradient(to bottom, #fff8db 0%, #e6c15c 40%, #8a6e2f 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 10px 0px rgba(62, 43, 25, 0.5));
+  transform: perspective(500px) rotateX(10deg);
+  letter-spacing: -2px;
+  margin: 0;
+}
+
+.hero-sub {
+  font-family: 'Montserrat', sans-serif;
+  color: #8a6e2f;
+  letter-spacing: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-top: 10px;
+  text-shadow: 0 2px 10px rgba(0,0,0,1);
+}
+
+.hero-fan {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 120px;
+  position: relative;
+  margin-bottom: 40px;
+  perspective: 1000px;
+}
+
+.fan-card {
+  width: 70px;
+  height: auto;
+  border-radius: 6px;
+  box-shadow: -5px 5px 15px rgba(0,0,0,0.8);
+  border: 1px solid #444;
+  position: absolute;
+  transition: all 0.5s ease-out;
+  transform-origin: bottom center;
+}
+
+.char-selection-area {
+  width: 100%;
+  max-width: 350px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+
+.selection-title {
+  color: #aaa;
+  font-size: 10px;
+  letter-spacing: 2px;
+  margin-bottom: 15px;
+  text-transform: uppercase;
+}
+
+.char-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.char-btn {
+  background: linear-gradient(145deg, #1a1a1a, #222);
+  border: 1px solid #333;
+  color: #888;
+  padding: 15px;
+  border-radius: 12px;
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+.char-btn.selected {
+  background: linear-gradient(145deg, #2a2010, #3e2b19);
+  border-color: var(--gold-primary);
+  color: var(--gold-primary);
+  box-shadow: 0 0 15px rgba(230, 193, 92, 0.2);
+}
+
+.btn-start-shiny {
+  width: 100%;
+  padding: 18px;
+  background: linear-gradient(90deg, #b8860b, #e6c15c, #b8860b);
+  background-size: 200% auto;
+  border: none;
+  border-radius: 12px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: #1a110d;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 10px 30px rgba(230, 193, 92, 0.3);
+  cursor: pointer;
+  animation: shinyBtn 3s linear infinite;
+}
+
+.btn-start-mobile{
+  width: 50%;
+  padding: 14px 16px;
+  border: none;
+  border-radius: 14px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  background: var(--gold-gradient);
+  color: #1a110d;
+  box-shadow: 0 10px 24px rgba(230, 193, 92, 0.25);
+  cursor: pointer;
+}
+
+.btn-start-mobile:active{
+  transform: translateY(2px);
+  box-shadow: 0 6px 16px rgba(230, 193, 92, 0.18);
+}
+
+.bid-box {
+  background: rgba(0,0,0,0.60);
+  border: 1px solid var(--gold-dark);
+  border-radius: 10px;
+  padding: 6px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+}
+
+.bid-box .black {
+  color: #fff;           /* maça & sinek BEYAZ */
+  text-shadow: 0 0 6px rgba(255,255,255,0.4);
+}
+
+.bid-label {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #aaa;
+  font-weight: 700;
+}
+
+.bid-value {
+  font-family: 'Cinzel';
+  font-size: 18px;
+  color: var(--gold-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bid-suit {
+  font-size: 20px;
+}
+
+@keyframes floatLogo { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes shinyBtn { 0% { background-position: 0% center; } 100% { background-position: 200% center; } }
+
+/* Small phones */
+@media screen and (max-width: 400px) {
+  .hero-title { font-size: 50px; }
+  .fan-card { width: 60px; }
+  :root { --card-overlap: min(4.2vw, 26px); }
+}
+
+.red { color: #d32f2f; }
+.black { color: #111; }
