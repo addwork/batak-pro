@@ -56,8 +56,9 @@ body, html, #root {
 .score-pill {
   background: rgba(0,0,0,0.6);
   border: 1px solid var(--gold-dark);
-  padding: 5px 12px;
-  border-radius: 20px;
+  padding: 10px 15px;
+  border-radius: 10px;
+  margin: 0 0 20px;
   font-size: 11px;
   display: flex;
   gap: 10px;
@@ -75,8 +76,8 @@ body, html, #root {
 /* ORTA ALAN */
 .game-area {
   position: absolute;
-  top: 70px;
-  bottom: 180px;
+  top: 40px;
+  bottom: 2px;
   left: 0; right: 0;
   display: flex;
   justify-content: center;
@@ -148,7 +149,7 @@ body, html, #root {
 /* KUZEY (üst oyuncu – kartların ALTINDA) */
 .pos-north {
   position: absolute;
-  top: 20px;                 /* 👈 kartların önüne indi */
+  top: 10px;                 /* 👈 kartların önüne indi */
   left: 50%;
   transform: translateX(-50%);
   z-index: 30;
